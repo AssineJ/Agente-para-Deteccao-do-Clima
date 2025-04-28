@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clima Fácil</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+    body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(to bottom,#87CEEB 0%,#f0f4f8 100%);overflow:hidden;position:relative}
+    body::before{content:'';position:absolute;top:0;left:0;width:200%;height:200%;background-image:url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><path fill="%23ffffffaa" d="M0 200 Q200 100 400 200 T800 200 L800 400 L0 400 Z"/></svg>');background-repeat:repeat-x;background-size:cover;opacity:0.2;animation:drift 120s linear infinite;z-index:-1}
+    @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .container{background:#fff;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);padding:24px;width:360px;text-align:center;position:relative;z-index:1}
+    h1{font-size:1.5rem;margin-bottom:16px;color:#333}
+    .field-group{margin-bottom:16px;text-align:left}
+    label{display:block;margin-bottom:6px;font-size:0.85rem;color:#555}
+    input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.9rem;background:#f9f9f9}
+    input:focus{outline:none;border-color:#bbb}
+    .controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+    .unit-selector{display:flex;align-items:center;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;padding:4px 8px}
+    .unit-selector button{background:none;border:none;font-size:1.2rem;cursor:pointer;color:#555;padding:4px}
+    .unit-selector .unit{margin:0 8px;font-size:0.9rem;color:#333;min-width:30px;text-align:center}
+    #fetchBtn{flex:1;margin-left:8px;padding:12px;background-color:#0078d7;border:none;border-radius:8px;color:#fff;font-size:1rem;cursor:pointer;transition:background-color 0.2s}
+    #fetchBtn:disabled{background-color:#a0c4e8;cursor:not-allowed}
+    #fetchBtn:hover:not(:disabled){background-color:#005fa3}
+    .card{margin-top:24px;padding:20px;background-color:#fafafa;border-radius:12px;text-align:center;border:1px solid #eee}
+    .city{font-size:1.3rem;font-weight:600;margin-bottom:8px;color:#222}
+    .temp{font-size:2.8rem;margin-bottom:8px;color:#0078d7}
+    .details{font-size:0.9rem;color:#444;line-height:1.5}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Clima Fácil</h1>
+    <div class="field-group">
+      <label for="apiKey">Sua API Key</label>
+      <input type="text" id="apiKey" placeholder="Ex: abc123..." />
+    </div>
+    <div class="field-group">
+      <label for="city">Cidade</label>
+      <input type="text" id="city" placeholder="Ex: São Paulo" />
+    </div>
+    <div class="controls">
+      <div class="unit-selector">
+        <button id="prevUnit">‹</button>
+        <div id="unitDisplay" class="unit">°C</div>
+        <button id="nextUnit">›</button>
+      </div>
+      <button id="fetchBtn" disabled>Verificar Clima</button>
+    </div>
+    <div id="weatherCard" class="card" style="display:none"></div>
+  </div>
+  <script>
+    const apiKeyInput=document.getElementById('apiKey');
+    const cityInput=document.getElementById('city');
+    const fetchBtn=document.getElementById('fetchBtn');
+    const weatherCard=document.getElementById('weatherCard');
+    const prevUnit=document.getElementById('prevUnit');
+    const nextUnit=document.getElementById('nextUnit');
+    const unitDisplay=document.getElementById('unitDisplay');
+    const units=['C','F','K'];
+    let unitIndex=0;
+    function updateUnitDisplay(){unitDisplay.textContent=units[unitIndex]==='C'?'°C':units[unitIndex]==='F'?'°F':'K';}
+    prevUnit.addEventListener('click',()=>{unitIndex=(unitIndex-1+units.length)%units.length;updateUnitDisplay();});
+    nextUnit.addEventListener('click',()=>{unitIndex=(unitIndex+1)%units.length;updateUnitDisplay();});
+    const conditionMap={200:'⛈️ Tempestade',201:'⛈️ Tempestade',202:'⛈️ Tempestade',230:'⛈️ Tempestade',231:'⛈️ Tempestade',232:'⛈️ Tempestade',300:'🌦️ Garoa',301:'🌦️ Garoa',302:'🌦️ Garoa',500:'🌧️ Chuva',501:'🌧️ Chuva',502:'🌧️ Chuva',600:'❄️ Neve',601:'❄️ Neve',602:'❄️ Neve',701:'🌫️ Névoa',711:'🌫️ Fumaça',721:'🌫️ Bruma',800:'☀️ Céu limpo',801:'⛅ Poucas nuvens',802:'🌥️ Nuvens dispersas',803:'☁️ Nuvens quebradas',804:'☁️ Nublado'};
+    function toggleButton(){fetchBtn.disabled=!apiKeyInput.value.trim()||!cityInput.value.trim();}
+    apiKeyInput.addEventListener('input',toggleButton);
+    cityInput.addEventListener('input',toggleButton);
+    fetchBtn.addEventListener('click',async()=>{
+      const apiKey=apiKeyInput.value.trim();
+      const city=cityInput.value.trim();
+      const url=`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},BR&appid=${apiKey}&lang=pt`;
+      weatherCard.style.display='none';
+      weatherCard.textContent='Carregando...';
+      weatherCard.style.display='block';
+      try{
+        const resp=await fetch(url);
+        if(!resp.ok)throw new Error('Cidade não encontrada ou API Key inválida');
+        const data=await resp.json();
+        const kelvinTemp=data.main.temp;
+        const kelvinFeels=data.main.feels_like;
+        const currentUnit=units[unitIndex];
+        let temp,feels;
+        if(currentUnit==='C'){temp=(kelvinTemp-273.15).toFixed(1)+'°C';feels=(kelvinFeels-273.15).toFixed(1)+'°C';}
+        else if(currentUnit==='F'){temp=((kelvinTemp-273.15)*9/5+32).toFixed(1)+'°F';feels=((kelvinFeels-273.15)*9/5+32).toFixed(1)+'°F';}
+        else{temp=kelvinTemp.toFixed(1)+'K';feels=kelvinFeels.toFixed(1)+'K';}
+        const humidity=data.main.humidity;
+        const wind=data.wind.speed;
+        const code=data.weather[0].id;
+        const desc=data.weather[0].description;
+        const emoji=conditionMap[code]||'';
+        weatherCard.innerHTML=`<div class="city">${emoji} ${data.name}</div><div class="temp">${temp}</div><div class="details">Sensação: ${feels}<br>Umidade: ${humidity}%<br>Vento: ${wind} m/s<br>Condição: ${emoji} ${desc}</div>`;
+      }catch(err){weatherCard.innerHTML=`<div class="details">Erro: ${err.message}</div>`;}
+    });
+    updateUnitDisplay();
+  </script>
+</body>
+</html>
