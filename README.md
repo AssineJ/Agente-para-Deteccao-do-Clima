@@ -26,7 +26,7 @@ Clima Fácil é uma interface web minimalista que permite consultar as condiçõ
 ### 2. Executar a interface
 - Baixe ou clone este repositório:
     ```bash
-    git clone https://github.com/seu-usuario/clima-facil.git
+    git clone https://github.com/AssineJ/clima-facil.git
     cd clima-facil
     ```
 - Abra o arquivo `index.html` em um navegador de sua escolha.
